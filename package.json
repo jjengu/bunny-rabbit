@@ -1,0 +1,16 @@
+{
+  "name": "glitch-discord-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot hosted on Glitch",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "discord.js": "^13.0.0"
+  },
+  "engines": {
+    "node": "16.x"
+  }
+}
