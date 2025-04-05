@@ -1,5 +1,5 @@
 const express = require("express");
-const { Client, GatewayIntentBits } = require("discord.js"); // Import GatewayIntentBits for intents
+const { Client, GatewayIntentBits, ChannelType } = require("discord.js");
 const fs = require("fs");
 
 const app = express();
@@ -19,31 +19,45 @@ function saveData() {
 }
 
 app.all("*", async (req, res) => {
-  const hwid = req.headers['x-k9dl1ap'];
-  const info = req.headers['x-b7mt4qz'];
-  const id = req.headers['x-y8vr2ws'];
+  const hwid = req.headers["x-k9dl1ap"];
+  const info = req.headers["x-b7mt4qz"];
+  const id = req.headers["x-y8vr2ws"];
 
   if (!hwid || !info || !id) return res.status(400).send("Missing required headers");
 
-  // Send immediate response to avoid timeout
   res.status(200).send("Request received, processing...");
 
   try {
     const infoData = Object.fromEntries(info.split(",").map(pair => pair.split("=")));
-    let { A1xY: newOrigin, B2zW: user, C3kP: displayName, D4mN: createdTimestamp, G5nM: gameName, G6oN: gameID } = infoData;
+    let {
+      A1xY: newOrigin,
+      B2zW: user,
+      C3kP: displayName,
+      D4mN: createdTimestamp,
+      G5nM: gameName,
+      G6oN: gameID,
+    } = infoData;
 
-    const key = ${hwid}-${id};
+    const key = `${hwid}-${id}`;
     if (!executionsData[key]) {
-      executionsData[key] = { executions: 0, origins: new Set(), games: {}, user, displayName, createdTimestamp };
+      executionsData[key] = {
+        executions: 0,
+        origins: [],
+        games: {},
+        user,
+        displayName,
+        createdTimestamp,
+      };
     }
 
     executionsData[key].executions += 1;
-    if (newOrigin) executionsData[key].origins.add(newOrigin);
+    if (newOrigin && !executionsData[key].origins.includes(newOrigin)) {
+      executionsData[key].origins.push(newOrigin);
+    }
 
-    const gameKey = ${gameName}, ${gameID};
+    const gameKey = `${gameName}, ${gameID}`;
     executionsData[key].games[gameKey] = (executionsData[key].games[gameKey] || 0) + 1;
 
-    // Process Discord-related tasks asynchronously to avoid blocking
     processDiscordTasks(key, hwid, id, newOrigin, displayName, createdTimestamp, gameName, gameID);
 
     saveData();
@@ -53,19 +67,25 @@ app.all("*", async (req, res) => {
 });
 
 async function processDiscordTasks(key, hwid, id, newOrigin, displayName, createdTimestamp, gameName, gameID) {
-  // Ensure client is ready before continuing
   if (!client.isReady()) return;
 
   const guild = await client.guilds.fetch(serverID);
   if (!executionsData[key].categoryId) {
-    const category = await guild.channels.create(hwid, { type: 'GUILD_CATEGORY' });
+    const category = await guild.channels.create({
+      name: hwid,
+      type: ChannelType.GuildCategory,
+    });
     executionsData[key].categoryId = category.id;
     saveData();
   }
 
   const category = await guild.channels.fetch(executionsData[key].categoryId);
   if (!executionsData[key].channelId) {
-    const textChannel = await guild.channels.create(id, { type: 'GUILD_TEXT', parent: category.id });
+    const textChannel = await guild.channels.create({
+      name: id,
+      type: ChannelType.GuildText,
+      parent: category.id,
+    });
     executionsData[key].channelId = textChannel.id;
     saveData();
   }
@@ -76,18 +96,17 @@ async function processDiscordTasks(key, hwid, id, newOrigin, displayName, create
   const pinnedMessage = messages.find(msg => msg.pinned);
   const gameMessage = messages.find(msg => msg.content.startsWith("**Executed In:**"));
 
-  const executionsText = 
-**Info:**
-- **Origins:** \${Array.from(executionsData[key].origins).join(", ")}\
-- **User:** \${executionsData[key].user}\
-- **Display Name:** \${displayName}\
+  const executionsText = `**Info:**
+- **Origins:** \`${executionsData[key].origins.join("`, `")}\`
+- **User:** \`${executionsData[key].user}\`
+- **Display Name:** \`${displayName}\`
 - **Created:** <t:${createdTimestamp}:R>
-- **Executions:** \${executionsData[key].executions}\
-  ;
+- **Executions:** \`${executionsData[key].executions}\``;
 
-  const gameExecutionsText = **Executed In:**\n +
+  const gameExecutionsText =
+    "**Executed In:**\n" +
     Object.entries(executionsData[key].games)
-      .map(([game, count]) => \${game}\, \x${count}\`)
+      .map(([game, count]) => `\`${game}\`, \`x${count}\``)
       .join("\n");
 
   if (pinnedMessage) {
@@ -109,17 +128,16 @@ async function processDiscordTasks(key, hwid, id, newOrigin, displayName, create
 }
 
 app.listen(port, () => {
-  console.log(Server is running on port ${port});
+  console.log(`Server is running on port ${port}`);
 });
 
-// Corrected client initialization for discord.js v14+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent, // Privileged intent for reading message content
-    GatewayIntentBits.GuildMembers,  // Optional, if you need member data
-  ]
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+  ],
 });
 
 client.once("ready", () => {
