@@ -29,14 +29,7 @@ app.all("*", async (req, res) => {
 
   try {
     const infoData = Object.fromEntries(info.split(",").map(pair => pair.split("=")));
-    let {
-      A1xY: newOrigin,
-      B2zW: user,
-      C3kP: displayName,
-      D4mN: createdTimestamp,
-      G5nM: gameName,
-      G6oN: gameID,
-    } = infoData;
+    let { A1xY: newOrigin, B2zW: user, C3kP: displayName, D4mN: createdTimestamp, G5nM: gameName, G6oN: gameID } = infoData;
 
     const key = `${hwid}-${id}`;
     if (!executionsData[key]) {
@@ -46,7 +39,7 @@ app.all("*", async (req, res) => {
         games: {},
         user,
         displayName,
-        createdTimestamp,
+        createdTimestamp
       };
     }
 
@@ -58,8 +51,7 @@ app.all("*", async (req, res) => {
     const gameKey = `${gameName}, ${gameID}`;
     executionsData[key].games[gameKey] = (executionsData[key].games[gameKey] || 0) + 1;
 
-    processDiscordTasks(key, hwid, id, newOrigin, displayName, createdTimestamp, gameName, gameID);
-
+    await processDiscordTasks(key, hwid, id, newOrigin, displayName, createdTimestamp, gameName, gameID);
     saveData();
   } catch (error) {
     console.error("Error processing request:", error);
@@ -70,6 +62,7 @@ async function processDiscordTasks(key, hwid, id, newOrigin, displayName, create
   if (!client.isReady()) return;
 
   const guild = await client.guilds.fetch(serverID);
+
   if (!executionsData[key].categoryId) {
     const category = await guild.channels.create({
       name: hwid,
@@ -103,8 +96,7 @@ async function processDiscordTasks(key, hwid, id, newOrigin, displayName, create
 - **Created:** <t:${createdTimestamp}:R>
 - **Executions:** \`${executionsData[key].executions}\``;
 
-  const gameExecutionsText =
-    "**Executed In:**\n" +
+  const gameExecutionsText = `**Executed In:**\n` +
     Object.entries(executionsData[key].games)
       .map(([game, count]) => `\`${game}\`, \`x${count}\``)
       .join("\n");
@@ -136,8 +128,8 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
+    GatewayIntentBits.GuildMembers
+  ]
 });
 
 client.once("ready", () => {
